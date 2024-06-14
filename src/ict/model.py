@@ -2,13 +2,10 @@
 """ICT model."""
 
 import logging
-from functools import singledispatchmethod
 from pathlib import Path
 from typing import Optional, TypeVar
 
 import yaml  # type: ignore
-from polus.plugins import Plugin  # type: ignore
-from polus.plugins._plugins.classes import _load_plugin  # type: ignore
 from pydantic import model_validator
 
 from ict.hardware import HardwareRequirements
@@ -16,12 +13,6 @@ from ict.io import IO
 from ict.metadata import Metadata
 from ict.tools import clt_dict, ict_dict
 from ict.ui import UIItem
-from ict.wipp_utils import (
-    convert_wipp_hardware_to_ict,
-    convert_wipp_io_to_ict,
-    convert_wipp_metadata_to_ict,
-    convert_wipp_ui_to_ict,
-)
 
 StrPath = TypeVar("StrPath", str, Path)
 
@@ -91,14 +82,12 @@ class ICT(Metadata):
             yaml.dump(self.to_clt(network_access), file)
         return Path(cwl_path)
 
-    def save_ict(self, ict_path: StrPath) -> Path:
-        """Save the ICT as YAML to a file. Useful for when converting CLT->ICT"""
-        assert (
-            str(ict_path).rsplit(".", maxsplit=1)[-1] in ["yml", "yaml"]
-        ), "Path must end in .yml or .yaml"
-        with Path(ict_path).open("w", encoding="utf-8") as file:
-            yaml.dump(self.ict, file)
-        return Path(ict_path)
+    def save_cwl(self, cwl_path: StrPath, network_access: bool = False) -> Path:
+        """Save the ICT as CommandLineTool to a file.
+
+        Alias for `save_clt`.
+        """
+        return self.save_clt(cwl_path, network_access)
 
     def save_yaml(self, yaml_path: StrPath) -> Path:
         """Save the ICT as yaml to a file."""
@@ -118,38 +107,3 @@ class ICT(Metadata):
         Alias for `save_yaml`.
         """
         return self.save_yaml(yml_path)
-
-    @singledispatchmethod
-    @classmethod
-    def from_wipp(cls, wipp: Plugin, **kwargs) -> "ICT":
-        """Convert WIPP Plugin to ICT."""
-        metadata = convert_wipp_metadata_to_ict(wipp, **kwargs)
-        if wipp.resourceRequirements is not None:
-            hardware = convert_wipp_hardware_to_ict(wipp.resourceRequirements)
-        else:
-            hardware = None
-        inputs = [convert_wipp_io_to_ict(inp) for inp in wipp.inputs]
-        outputs = [convert_wipp_io_to_ict(out) for out in wipp.outputs]
-        ui = [convert_wipp_ui_to_ict(ui_, wipp.inputs) for ui_ in wipp.ui]
-        return cls(
-            **metadata.model_dump(),
-            inputs=inputs,
-            outputs=outputs,
-            ui=ui,
-            hardware=hardware,
-        )
-
-    @from_wipp.register(Path)  # type: ignore
-    @classmethod
-    def _(cls, wipp, **kwargs) -> "ICT":
-        """Convert WIPP Plugin to ICT."""
-        wipp_ = _load_plugin(wipp)
-        return cls.from_wipp(wipp_, **kwargs)
-
-    @from_wipp.register(str)  # type: ignore
-    @classmethod
-    def _(cls, wipp, **kwargs) -> "ICT":
-        """Convert WIPP Plugin to ICT."""
-        wipp_ = _load_plugin(wipp)
-        return cls.from_wipp(wipp_, **kwargs)
-
