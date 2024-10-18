@@ -200,7 +200,7 @@ Given the complexity that an ICT with several input and output parameters can in
 | Operator | Definition |
 | :------: | ---------- |
 | `==` | equal to |
-| `!+` | not equal |
+| `!=` | not equal |
 | `>` | greater than |
 | `<` | less than |
 | `>=` | greater than or equal to |
